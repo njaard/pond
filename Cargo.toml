@@ -1,0 +1,12 @@
+[package]
+name = "scope-threadpool"
+version = "0.1.0"
+authors = ["Kalle Samuels <ks@ks.ax>"]
+license = "BSD-2-Clause"
+readme = "Readme.md"
+description = "A library for scoped and cached threadpools that keep a state."
+repository = "https://github.com/njaard/scope-threadpool"
+keywords = ["scoped", "pool", "threadpool", "stateful", "state"]
+documentation = "https://docs.rs/scope-threadpool/"
+
+[dependencies]
