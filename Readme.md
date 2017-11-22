@@ -3,7 +3,7 @@
 [![Documentation](https://docs.rs/scope-threadpool/badge.svg)](https://docs.rs/scope-threadpool/)
 
 	[dependencies]
-	scope-threadpool = "0.1"
+	scope-threadpool = "0.2.1"
 
 # Introduction
 Yet another implementation of a scoped threadpool.
@@ -35,7 +35,6 @@ connection in a sane state between jobs.
 # Example
 
     let mut pool = scope_threadpool::Pool::new(4);
-
 
     let mut vec = vec![0, 0, 0, 0, 0, 0, 0, 0];
 
