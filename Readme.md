@@ -3,7 +3,7 @@
 [![Documentation](https://docs.rs/scope-threadpool/badge.svg)](https://docs.rs/scope-threadpool/)
 
 	[dependencies]
-	scope-threadpool = "0.2.1"
+	scope-threadpool = "0.2.2"
 
 # Introduction
 Yet another implementation of a scoped threadpool.
@@ -19,7 +19,6 @@ in the current function scope, which means that
 data doesn't need to have a `'static` lifetime.
 
 # Usecase
-
 If you need to make multiple connections to a database server,
 without this crate, you need some sort of connection pooling library,
 and therefor each connection needs Rust's `Send` capability. Furthermore,

@@ -1,6 +1,6 @@
 [package]
 name = "scope-threadpool"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Kalle Samuels <ks@ks.ax>"]
 license = "BSD-2-Clause"
 readme = "Readme.md"
