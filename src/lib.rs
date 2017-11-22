@@ -251,7 +251,6 @@ impl Pool
 										if !in_checkpoint && messaging.job_queue.is_empty()
 										{
 											state = messaging.state_maker.as_ref().unwrap().create();
-											println!("state set");
 											messaging.completion_counter += 1;
 											in_checkpoint = true;
 											pool_status.thread_response_cv.notify_one();
