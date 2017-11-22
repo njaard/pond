@@ -47,19 +47,6 @@
 //!     assert_eq!(vec, vec![21, 21, 21, 21, 21, 21, 21, 21]);
 //! }
 //! ```
-#![feature(get_type_id)]
-#![feature(alloc_system)]
-#![feature(global_allocator, allocator_api)]
-
-extern crate alloc_system;
-
-use alloc_system::System;
-
-#[global_allocator]
-static A: System = System;
-
-
-
 use std::collections::VecDeque;
 use std::sync::{Arc,Mutex,Condvar};
 use std::thread::JoinHandle;
