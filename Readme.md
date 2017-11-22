@@ -34,13 +34,8 @@ connection in a sane state between jobs.
 
 # Example
 
-    let mut pool = scope_threadpool::Pool::new(
-        4,
-        || "costly setup function".len()
-    );
+    let mut pool = scope_threadpool::Pool::new(4);
 
-    // each thread gets its own mutable copy of the result of
-    // the above setup function
 
     let mut vec = vec![0, 0, 0, 0, 0, 0, 0, 0];
 
@@ -49,6 +44,10 @@ connection in a sane state between jobs.
     pool.scoped(
         |scoped|
         {
+            let scoped = scoped.with_state(|| "costly setup function".len());
+            // each thread gets its own mutable copy of the result of
+            // the above setup function
+
             // Create references to each element in the vector ...
             for e in &mut vec
             {
