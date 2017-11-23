@@ -1,14 +1,14 @@
 //! Yet another implementation of a scoped threadpool.
 //!
-//! This one is has the additional ability to store a mutable
-//! state in each thread, which permits you to, for example, reuse
-//! expensive to setup database connections, one per thread. Also,
-//! you can set a backlog which can prevent an explosion of memory
-//! usage if you have many jobs to start.
-//!
 //! A scoped threadpool allows many tasks to be executed
 //! in the current function scope, which means that
 //! data doesn't need to have a `'static` lifetime.
+//!
+//! This one is has the additional ability to store a mutable
+//! state in each thread, which permits you to, for example, reuse
+//! expensive-to-setup database connections, one per thread. Also,
+//! you can set a backlog which can prevent an explosion of memory
+//! usage if you have many jobs to start.
 //!
 //! # Example
 //!
@@ -18,31 +18,33 @@
 //! fn main()
 //! {
 //!     // Create a threadpool holding 4 threads.
-//!     let mut pool = scope_threadpool::Pool::new(4);
+//!    let mut pool = scope_threadpool::Pool::new(4);
 //!
-//!     let mut vec = vec![0, 0, 0, 0, 0, 0, 0, 0];
+//!    let mut vec = vec![0, 0, 0, 0, 0, 0, 0, 0];
 //!
-//!     // Each thread can access the variables from
-//!     // the current scope
-//!     pool.scoped(
-//!         |scoped|
-//!         {
-//!             let scoped = scoped.with_state(|| "costly setup function".len());
-//!             // each thread gets its own mutable copy of the result of
-//!             // the above setup function
+//!    // Each thread can access the variables from
+//!    // the current scope
+//!    pool.scoped(
+//!        |scoped|
+//!        {
+//!            let scoped = scoped.with_state(
+//!                || "costly setup function".len()
+//!            );
+//!            // each thread runs the above setup function
 //!
-//!             // Create references to each element in the vector ...
-//!             for e in &mut vec
-//!             {
-//!                 scoped.execute(
-//!                     move |state|
-//!                     {
-//!                         *e += *state;
-//!                     }
-//!                 );
-//!             }
-//!         }
-//!     );
+//!            // Create references to each element in the vector ...
+//!            for e in &mut vec
+//!            {
+//!                scoped.execute(
+//!                    move |state|
+//!                    {
+//!                        *e += *state;
+//!                        assert_eq!(*e, 21);
+//!                    }
+//!                );
+//!            }
+//!        }
+//!    );
 //!
 //!     assert_eq!(vec, vec![21, 21, 21, 21, 21, 21, 21, 21]);
 //! }
