@@ -115,7 +115,7 @@ struct Messaging
 	job_queue : VecDeque<Box<AbstractTask>>,
 	flag : Option<Flag>,
 	completion_counter : usize,
-	panic_counter : usize,
+	panic_detected : bool,
 	state_maker : Option<StateMaker<'static>>,
 }
 
@@ -128,7 +128,7 @@ impl Messaging
 			job_queue: VecDeque::new(),
 			flag: None,
 			completion_counter: 0,
-			panic_counter: 0,
+			panic_detected: false,
 			state_maker: None,
 		}
 	}
@@ -279,7 +279,7 @@ impl Pool
 						.lock().unwrap_or_else(|e| e.into_inner());
 					if has_panic.is_err()
 					{
-						messaging.panic_counter += 1;
+						messaging.panic_detected = true;
 					}
 					pool_status.thread_response_cv.notify_one();
 
@@ -326,7 +326,7 @@ impl Pool
 
 			// wait for all threads to get the checkpoint event (or to panic)
 			while messaging.completion_counter != self.threads.len()
-				&& 0==messaging.panic_counter
+				&& !messaging.panic_detected
 			{
 				messaging
 					= self.pool_status
@@ -335,7 +335,7 @@ impl Pool
 						.unwrap_or_else(|e| e.into_inner());
 			}
 
-			if messaging.panic_counter != 0
+			if messaging.panic_detected
 			{
 				panic!("worker thread panicked");
 			}
@@ -432,7 +432,7 @@ impl<'pool, 'scope> Scope<'pool, 'scope>
 
 			// wait for all threads to get the event (or to panic)
 			while messaging.completion_counter != self.pool.threads.len()
-				&& 0==messaging.panic_counter
+				&& !messaging.panic_detected
 			{
 				messaging
 					= self.pool.pool_status
@@ -441,7 +441,7 @@ impl<'pool, 'scope> Scope<'pool, 'scope>
 						.unwrap_or_else(|e| e.into_inner());
 			}
 
-			if messaging.panic_counter != 0
+			if messaging.panic_detected
 			{
 				panic!("worker thread panicked");
 			}
@@ -465,7 +465,6 @@ impl<'pool, 'scope> Scope<'pool, 'scope>
 						.wait(messaging)
 						.unwrap_or_else(|e| e.into_inner());
 			}
-			//writeln!(&mut std::io::stderr(), "resume ctr is {}, finished!!!", messaging.completion_counter).unwrap();
 			messaging.flag = None;
 		}
 
@@ -508,7 +507,10 @@ impl<'pool, 'scope> Scope<'pool, 'scope>
 		let mut messaging = self.pool.pool_status.messaging
 			.lock().unwrap_or_else(|e| e.into_inner());
 
-		while self.pool.backlog.map(|allowed| allowed < messaging.job_queue.len()).unwrap_or(false)
+		while self.pool.backlog.map(
+				|allowed| allowed < messaging.job_queue.len()
+			).unwrap_or(false)
+			&& !messaging.panic_detected
 		{
 			messaging
 				= self.pool.pool_status
@@ -519,7 +521,7 @@ impl<'pool, 'scope> Scope<'pool, 'scope>
 
 		messaging.job_queue.push_back( boxed_fn );
 
-		if messaging.panic_counter != 0
+		if messaging.panic_detected
 		{
 			panic!("worker thread panicked");
 		}
@@ -576,7 +578,9 @@ impl<'pool, 'scope, State> ScopeWithState<'pool, 'scope, State>
 		let mut messaging = self.pool.pool_status.messaging
 			.lock().unwrap_or_else(|e| e.into_inner());
 
-		while self.pool.backlog.map(|allowed| allowed < messaging.job_queue.len()).unwrap_or(false)
+		while self.pool.backlog.map(
+			|allowed| allowed < messaging.job_queue.len()
+		).unwrap_or(false)
 		{
 			messaging
 				= self.pool.pool_status
@@ -587,7 +591,7 @@ impl<'pool, 'scope, State> ScopeWithState<'pool, 'scope, State>
 
 		messaging.job_queue.push_back( boxed_fn );
 
-		if messaging.panic_counter != 0
+		if messaging.panic_detected
 		{
 			panic!("worker thread panicked");
 		}
