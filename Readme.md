@@ -31,6 +31,11 @@ A mutable reference is passed to your job closures. It's your
 job's responsibility to make sure that each job keep the database
 connection in a sane state between jobs.
 
+Using the state-making capability is optional. If you don't call the
+`with_state` function, then your job closures don't need any parameters,
+which therefor makes this crate compatible with other scoped threadpool
+libraries.
+
 # Example
 
     let mut pool = scope_threadpool::Pool::new(4);
@@ -60,7 +65,6 @@ connection in a sane state between jobs.
             }
         }
     );
-
 
 # See Also
 
