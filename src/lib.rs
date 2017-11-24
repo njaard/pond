@@ -152,7 +152,7 @@ pub struct Pool
 
 impl Pool
 {
-	/// Spawn a number of threads each of which call a state making function.
+	/// Spawn a number of threads
 	pub fn new(nthreads : usize)
 		-> Pool
 	{
@@ -231,6 +231,8 @@ impl Pool
 						{
 							if !in_checkpoint && messaging.job_queue.is_empty()
 							{
+								// bug: the state_maker should be called in all
+								// threads simultaneously (they all wait on the mutex)
 								state = messaging.state_maker.as_ref().unwrap().create();
 								messaging.completion_counter += 1;
 								in_checkpoint = true;
@@ -510,7 +512,6 @@ impl<'pool, 'scope> Scope<'pool, 'scope>
 		while self.pool.backlog.map(
 				|allowed| allowed < messaging.job_queue.len()
 			).unwrap_or(false)
-			&& !messaging.panic_detected
 		{
 			messaging
 				= self.pool.pool_status
@@ -532,7 +533,7 @@ impl<'pool, 'scope> Scope<'pool, 'scope>
 
 
 /// Like `Scope`, but the `execute` function
-/// accepts closures with a State parameter.
+/// accepts worker closures with a State parameter.
 pub struct ScopeWithState<'pool, 'scope, State>
 	where State : 'scope
 {
@@ -579,8 +580,8 @@ impl<'pool, 'scope, State> ScopeWithState<'pool, 'scope, State>
 			.lock().unwrap_or_else(|e| e.into_inner());
 
 		while self.pool.backlog.map(
-			|allowed| allowed < messaging.job_queue.len()
-		).unwrap_or(false)
+				|allowed| allowed < messaging.job_queue.len()
+			).unwrap_or(false)
 		{
 			messaging
 				= self.pool.pool_status
