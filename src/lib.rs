@@ -827,16 +827,15 @@ mod tests
 	fn no_leak_state()
 	{
 		let counters = ::std::sync::Arc::new(());
-		//let cclone = counters.clone();
 
 		let mut pool = Pool::new(4);
 		pool.scoped(
 			|scoped|
 			{
 				scoped.execute(
-					move ||
+					||
 					{
-						//let _c = ::std::sync::Arc::clone(&c);
+						let _c = ::std::sync::Arc::clone(&counters);
 					}
 				);
 			}
@@ -987,5 +986,34 @@ mod tests
 		);
 
 		assert_eq!(*counter.lock().unwrap(), 120);
+	}
+
+	#[test]
+	fn state_maker_panic()
+	{
+		let mut pool = Pool::new(2);
+		let panic = ::std::panic::catch_unwind(
+			::std::panic::AssertUnwindSafe(
+				||
+				{
+					pool.scoped(
+						|scoped|
+						{
+							scoped.with_state(
+								|| panic!()
+							);
+						}
+					);
+				}
+			)
+		);
+		if let Err(e) = panic
+		{
+			let s = e.downcast_ref::<&str>().unwrap();
+			assert_eq!(
+				*s,
+				"worker thread panicked"
+			);
+		}
 	}
 }
