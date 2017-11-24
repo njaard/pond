@@ -170,6 +170,99 @@ impl Pool
 		Self::base_new(nthreads, Some(backlog))
 	}
 
+	fn run_thread(pool_status : Arc<PoolStatus>)
+	{
+		let has_panic = std::panic::catch_unwind(
+			std::panic::AssertUnwindSafe(||
+			{
+				// the default state is one that calls a function
+				// with no state parameters
+
+				let mut state = Box::new(0) as Box<Any>;
+
+				let messaging = &pool_status.messaging;
+
+				let mut in_checkpoint = false;
+
+				loop
+				{
+					let mut messaging = messaging
+						.lock()
+						.unwrap_or_else(|e| e.into_inner());
+
+					while (
+						in_checkpoint
+							&& *messaging.flag.as_ref()
+								.unwrap_or(&Flag::Checkpoint)
+								== Flag::Checkpoint
+						) || (
+							messaging.job_queue.is_empty()
+							&& messaging.flag.is_none()
+						)
+					{
+						messaging = pool_status
+							.incoming_notif_cv
+							.wait(messaging)
+							.unwrap_or_else(|e| e.into_inner());
+					}
+
+					match messaging.flag
+					{
+						Some(Flag::Checkpoint) =>
+						{
+							if !in_checkpoint && messaging.job_queue.is_empty()
+							{
+								messaging.completion_counter += 1;
+								in_checkpoint = true;
+								pool_status.thread_response_cv.notify_one();
+								continue;
+							}
+						},
+						Some(Flag::Resume) =>
+						{
+							if in_checkpoint
+							{
+								messaging.completion_counter += 1;
+								in_checkpoint = false;
+								pool_status.thread_response_cv.notify_one();
+							}
+						},
+						Some(Flag::SetState) =>
+						{
+							if !in_checkpoint && messaging.job_queue.is_empty()
+							{
+								state = messaging.state_maker.as_ref().unwrap().create();
+								messaging.completion_counter += 1;
+								in_checkpoint = true;
+								pool_status.thread_response_cv.notify_one();
+							}
+						},
+						Some(Flag::Exit) =>
+						{
+							return;
+						},
+						None => { }
+					}
+
+					if let Some(t) = messaging.job_queue.pop_front()
+					{
+						pool_status.thread_response_cv.notify_one();
+						drop(messaging);
+						t.run(&mut state);
+					}
+				}
+			})
+		);
+
+		let mut messaging = pool_status.messaging
+			.lock().unwrap_or_else(|e| e.into_inner());
+		if has_panic.is_err()
+		{
+			messaging.panic_detected = true;
+		}
+		pool_status.thread_response_cv.notify_one();
+	}
+
 	fn base_new(nthreads : usize, backlog: Option<usize>)
 		-> Pool
 	{
@@ -191,104 +284,11 @@ impl Pool
 			let pool_status = pool_status.clone();
 
 			let t = std::thread::spawn(
-				move ||
-				{
-					let has_panic = std::panic::catch_unwind(
-						std::panic::AssertUnwindSafe(||
-						{
-							// the default state is one that calls a function
-							// with no state parameters
-
-							let mut state = Box::new(0) as Box<Any>;
-
-							let messaging = &pool_status.messaging;
-
-							let mut in_checkpoint = false;
-
-							loop
-							{
-								let mut messaging = messaging
-									.lock()
-									.unwrap_or_else(|e| e.into_inner());
-
-								while (
-									in_checkpoint
-										&& *messaging.flag.as_ref()
-											.unwrap_or(&Flag::Checkpoint)
-											== Flag::Checkpoint
-									) || (
-										messaging.job_queue.is_empty()
-										&& messaging.flag.is_none()
-									)
-								{
-									messaging = pool_status
-										.incoming_notif_cv
-										.wait(messaging)
-										.unwrap_or_else(|e| e.into_inner());
-								}
-
-								match messaging.flag
-								{
-									Some(Flag::Checkpoint) =>
-									{
-										if !in_checkpoint && messaging.job_queue.is_empty()
-										{
-											messaging.completion_counter += 1;
-											in_checkpoint = true;
-											pool_status.thread_response_cv.notify_one();
-											continue;
-										}
-									},
-									Some(Flag::Resume) =>
-									{
-										if in_checkpoint
-										{
-											messaging.completion_counter += 1;
-											in_checkpoint = false;
-											pool_status.thread_response_cv.notify_one();
-										}
-									},
-									Some(Flag::SetState) =>
-									{
-										if !in_checkpoint && messaging.job_queue.is_empty()
-										{
-											state = messaging.state_maker.as_ref().unwrap().create();
-											messaging.completion_counter += 1;
-											in_checkpoint = true;
-											pool_status.thread_response_cv.notify_one();
-										}
-									},
-									Some(Flag::Exit) =>
-									{
-										return;
-									},
-									None => { }
-								}
-
-								if let Some(t) = messaging.job_queue.pop_front()
-								{
-									pool_status.thread_response_cv.notify_one();
-									drop(messaging);
-									t.run(&mut state);
-								}
-							}
-						})
-					);
-
-					let mut messaging = pool_status.messaging
-						.lock().unwrap_or_else(|e| e.into_inner());
-					if has_panic.is_err()
-					{
-						messaging.panic_detected = true;
-					}
-					pool_status.thread_response_cv.notify_one();
-
-				}
+				move || Self::run_thread(pool_status)
 			);
 
 			threads.push(t);
 		}
-
 
 		Pool
 		{
