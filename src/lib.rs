@@ -13,12 +13,12 @@
 //! # Example
 //!
 //! ```rust
-//! extern crate scope_threadpool;
+//! extern crate pond;
 //!
 //! fn main()
 //! {
 //!     // Create a threadpool holding 4 threads.
-//!    let mut pool = scope_threadpool::Pool::new(4);
+//!    let mut pool = pond::Pool::new(4);
 //!
 //!    let mut vec = vec![0, 0, 0, 0, 0, 0, 0, 0];
 //!

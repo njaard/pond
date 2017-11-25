@@ -1,12 +1,12 @@
 [package]
-name = "scope-threadpool"
+name = "pond"
 version = "0.2.2"
 authors = ["Kalle Samuels <ks@ks.ax>"]
 license = "BSD-2-Clause"
 readme = "Readme.md"
 description = "A library for scoped and cached threadpools that keep a state."
-repository = "https://github.com/njaard/scope-threadpool"
+repository = "https://github.com/njaard/pond"
 keywords = ["scoped", "pool", "threadpool", "stateful", "state"]
-documentation = "https://docs.rs/scope-threadpool/"
+documentation = "https://docs.rs/pond/"
 
 [dependencies]

@@ -1,9 +1,9 @@
-[![GitHub license](https://img.shields.io/badge/license-BSD-blue.svg)](https://raw.githubusercontent.com/njaard/scope-threadpool/master/LICENSE)
-[![Crates.io](https://img.shields.io/crates/v/scope-threadpool.svg)](https://crates.io/crates/scope-threadpool)
-[![Documentation](https://docs.rs/scope-threadpool/badge.svg)](https://docs.rs/scope-threadpool/)
+[![GitHub license](https://img.shields.io/badge/license-BSD-blue.svg)](https://raw.githubusercontent.com/njaard/pond/master/LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/pond.svg)](https://crates.io/crates/pond)
+[![Documentation](https://docs.rs/pond/badge.svg)](https://docs.rs/pond/)
 
 	[dependencies]
-	scope-threadpool = "0.2.2"
+	pond = "0.2.2"
 
 # Introduction
 Yet another implementation of a scoped threadpool.
@@ -37,8 +37,8 @@ which therefor makes this crate compatible with other scoped threadpool
 libraries.
 
 # Example
-
-    let mut pool = scope_threadpool::Pool::new(4);
+    extern crate pond;
+    let mut pool = pond::Pool::new(4);
 
     let mut vec = vec![0, 0, 0, 0, 0, 0, 0, 0];
 
