@@ -305,8 +305,8 @@ impl Pool
 	/// This function panics if the given closure or any threads panic.
 	///
 	/// Does not return until all executed jobs complete.
-	pub fn scoped<F>(&mut self, f : F)
-		where F: FnOnce(Scope)
+	pub fn scoped<'pool, 'scope, F>(&'pool mut self, f : F)
+		where F: FnOnce(Scope<'pool, 'scope>)
 	{
 		{
 			let scope = Scope
@@ -390,8 +390,8 @@ impl Drop for Pool
 /// functions in it.
 pub struct Scope<'pool, 'scope>
 {
-	pool: &'pool mut Pool,
-	_scope: PhantomData<&'scope ()>,
+	pool: &'pool Pool,
+	_scope: PhantomData<::std::cell::Cell<&'scope mut ()>>,
 }
 
 impl<'pool, 'scope> Scope<'pool, 'scope>
@@ -537,7 +537,7 @@ impl<'pool, 'scope> Scope<'pool, 'scope>
 pub struct ScopeWithState<'pool, 'scope, State>
 	where State : 'scope
 {
-	pool: &'pool mut Pool,
+	pool: &'pool Pool,
 	_scope: PhantomData<&'scope ()>,
 	_state: PhantomData<&'scope State>,
 }
@@ -560,7 +560,7 @@ impl<'pool, 'scope, State> ScopeWithState<'pool, 'scope, State>
 	/// again after a panic occurs, then [`Pool::scoped`](struct.Pool.html#method.scoped)
 	/// will panic before it completes.
 	pub fn execute<F>(&self, f: F)
-		where F: FnOnce(&mut State) + Send + 'scope
+		where F: FnOnce(&mut State) + Send + 'pool
 	{
 		// this is where the magic happens,
 		// we change the lifetime of `f` and then enforce
@@ -571,7 +571,7 @@ impl<'pool, 'scope, State> ScopeWithState<'pool, 'scope, State>
 			= unsafe
 			{
 				std::mem::transmute::<
-					Box<AbstractTask + 'scope>,
+					Box<AbstractTask + 'pool>,
 					Box<AbstractTask + 'static>
 				>(Box::new(FnState(f, PhantomData)))
 			};
@@ -647,6 +647,33 @@ mod tests
 			assert_eq!(vec, vec2);
 		}
 	}
+
+	// this one should not compile
+	/*
+	#[test]
+	fn negative_test()
+	{
+		let mut pool = Pool::new(60);
+
+		let all = ::std::sync::Mutex::new(vec!());
+
+		pool.scoped(
+			|s|
+			for i in 0..10
+			{
+				s.execute(
+					||
+					all.lock().unwrap().push(i)
+				);
+			}
+		);
+
+		let mut all = all.into_inner().unwrap();
+		all.sort();
+
+		assert_eq!(all, [0,1,2,3,4,5,6,7,8,9]);
+	}
+	*/
 
 	#[test]
 	#[should_panic]
