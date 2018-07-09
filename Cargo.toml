@@ -1,6 +1,6 @@
 [package]
 name = "pond"
-version = "0.2.3"
+version = "0.3.0"
 authors = ["Kalle Samuels <ks@ks.ax>"]
 license = "BSD-2-Clause"
 readme = "Readme.md"
@@ -10,3 +10,4 @@ keywords = ["scoped", "pool", "threadpool", "stateful", "state"]
 documentation = "https://docs.rs/pond/"
 
 [dependencies]
+num_cpus = "1"

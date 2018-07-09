@@ -17,8 +17,8 @@
 //!
 //! fn main()
 //! {
-//!     // Create a threadpool holding 4 threads.
-//!    let mut pool = pond::Pool::new(4);
+//!    // Create a threadpool with the native number of cpus
+//!    let mut pool = pond::Pool::new();
 //!
 //!    let mut vec = vec![0, 0, 0, 0, 0, 0, 0, 0];
 //!
@@ -54,6 +54,8 @@ use std::sync::{Arc,Mutex,Condvar};
 use std::thread::JoinHandle;
 use std::marker::PhantomData;
 use std::any::Any;
+
+extern crate num_cpus;
 
 trait AbstractTask: Send
 {
@@ -152,11 +154,33 @@ pub struct Pool
 
 impl Pool
 {
-	/// Spawn a number of threads
-	pub fn new(nthreads : usize)
+	/// Spawn a pool with the native number of threads and a fixed backlog
+	///
+	/// The native number of threads is the number of logical cpus
+	/// according to the crate [`num_cpus`](https://crates.io/crates/num_cpus)
+	///
+	/// The backlog, 4 times the number of threads, is the number of
+	/// unprocessed jobs that are allowed to accumulate from
+	/// [`Scope::execute`](struct.Scope.html#method.execute)
+	pub fn new()
 		-> Pool
 	{
-		Self::base_new(nthreads, None)
+		let c = num_cpus::get();
+		Self::base_new(c, Some(c*4))
+	}
+
+	/// Spawn a pool with the native number of threads an un unbounded backlog
+	///
+	/// The native number of threads is the number of logical cpus
+	/// according to the crate [`num_cpus`](https://crates.io/crates/num_cpus)
+	///
+	/// [`Scope::execute`](struct.Scope.html#method.execute) will never block
+	/// and will accumulate any task you give it. This may require a lot of memory.
+	pub fn unbounded()
+		-> Pool
+	{
+		let c = num_cpus::get();
+		Self::base_new(c, None)
 	}
 
 	/// Spawn a number of threads. The pool's queue of pending jobs is limited.
@@ -164,10 +188,19 @@ impl Pool
 	/// `backlog` is the number of jobs that haven't been run.
 	/// If specified, [`Scope::execute`](struct.Scope.html#method.execute) will block
 	/// until a job completes.
-	pub fn new_with_backlog(nthreads : usize, backlog : usize)
+	pub fn new_threads(nthreads : usize, backlog : usize)
 		-> Pool
 	{
 		Self::base_new(nthreads, Some(backlog))
+	}
+
+	/// Spawn a number of threads. The pool's queue of pending jobs is limited.
+	///
+	/// the backlog is unbounded as in `unbounded`.
+	pub fn new_threads_unbounded(nthreads : usize)
+		-> Pool
+	{
+		Self::base_new(nthreads, None)
 	}
 
 	fn run_thread(pool_status : Arc<PoolStatus>)
@@ -376,6 +409,7 @@ impl Drop for Pool
 			let mut messaging = self.pool_status.messaging
 				.lock().unwrap_or_else(|e| e.into_inner());
 
+			assert_eq!(messaging.job_queue.len(), 0);
 			messaging.flag = Some(Flag::Exit);
 			self.pool_status.incoming_notif_cv.notify_all();
 		}
@@ -618,7 +652,7 @@ mod tests
 	#[test]
 	fn smoketest()
 	{
-		let mut pool = Pool::new(4);
+		let mut pool = Pool::new_threads_unbounded(4);
 
 		for i in 1..7
 		{
@@ -653,7 +687,7 @@ mod tests
 	#[test]
 	fn negative_test()
 	{
-		let mut pool = Pool::new(60);
+		let mut pool = Pool::new_threads_unbounded(60);
 
 		let all = ::std::sync::Mutex::new(vec!());
 
@@ -679,7 +713,7 @@ mod tests
 	#[should_panic]
 	fn thread_panic()
 	{
-		let mut pool = Pool::new(4);
+		let mut pool = Pool::new_threads_unbounded(4);
 		pool.scoped(
 			|scoped|
 			{
@@ -697,7 +731,7 @@ mod tests
 	#[should_panic]
 	fn scope_panic()
 	{
-		let mut pool = Pool::new(4);
+		let mut pool = Pool::new_threads_unbounded(4);
 		pool.scoped(
 			|_scoped|
 			{
@@ -710,14 +744,14 @@ mod tests
 	#[should_panic]
 	fn pool_panic()
 	{
-		let _pool = Pool::new(4);
+		let _pool = Pool::new_threads_unbounded(4);
 		panic!()
 	}
 
 	#[test]
 	fn join_all()
 	{
-		let mut pool = Pool::new(4);
+		let mut pool = Pool::new_threads_unbounded(4);
 
 		let (tx_, rx) = sync::mpsc::channel();
 
@@ -774,7 +808,7 @@ mod tests
 		let handle = thread::spawn(
 			move ||
 			{
-				let mut pool = Pool::new(8);
+				let mut pool = Pool::new_threads_unbounded(8);
 				let _on_scope_end = OnScopeEnd(tx_.clone());
 				pool.scoped(
 					|scoped|
@@ -817,7 +851,7 @@ mod tests
 	{
 		let counters = ::std::sync::Arc::new(());
 
-		let mut pool = Pool::new(4);
+		let mut pool = Pool::new_threads_unbounded(4);
 		pool.scoped(
 			|scoped|
 			{
@@ -838,7 +872,7 @@ mod tests
 	#[test]
 	fn no_leak2()
 	{
-		let mut pool = Pool::new(4);
+		let mut pool = Pool::new_threads_unbounded(4);
 		pool.scoped(
 			|scoped|
 			{
@@ -860,7 +894,7 @@ mod tests
 	{
 		let counters = ::std::sync::Arc::new(());
 
-		let mut pool = Pool::new(4);
+		let mut pool = Pool::new_threads_unbounded(4);
 		pool.scoped(
 			|scoped|
 			{
@@ -879,7 +913,7 @@ mod tests
 	#[test]
 	fn safe_execute()
 	{
-		let mut pool = Pool::new(4);
+		let mut pool = Pool::new_threads_unbounded(4);
 		pool.scoped(
 			|scoped|
 			{
@@ -895,7 +929,7 @@ mod tests
 	#[test]
 	fn backlog_positive()
 	{
-		let mut pool = Pool::new_with_backlog(4, 1);
+		let mut pool = Pool::new_threads(4, 1);
 		pool.scoped(
 			|scoped|
 			{
@@ -917,7 +951,7 @@ mod tests
 	#[test]
 	fn backlog_negative()
 	{
-		let mut pool = Pool::new(20);
+		let mut pool = Pool::new_threads_unbounded(20);
 		pool.scoped(
 			|scoped|
 			{
@@ -939,7 +973,7 @@ mod tests
 	#[test]
 	fn many_threads()
 	{
-		let mut pool = Pool::new(40);
+		let mut pool = Pool::new_threads_unbounded(40);
 		pool.scoped(
 			|scoped|
 			{
@@ -963,7 +997,7 @@ mod tests
 
 		let counter = ::std::sync::Mutex::new(0);
 
-		let mut pool = Pool::new(4);
+		let mut pool = Pool::new_threads_unbounded(4);
 		pool.scoped(
 			|scoped|
 			{
@@ -994,7 +1028,7 @@ mod tests
 	{
 		let counter = ::std::sync::Arc::new(::std::sync::Mutex::new(0));
 
-		let mut pool = Pool::new(4);
+		let mut pool = Pool::new_threads_unbounded(4);
 		pool.scoped(
 			|scoped|
 			{
@@ -1021,9 +1055,35 @@ mod tests
 	}
 
 	#[test]
+	fn do_them_all()
+	{
+		let counter = ::std::sync::Arc::new(::std::sync::Mutex::new(0));
+
+		let mut pool = Pool::new_threads(512, 1000);
+		pool.scoped(
+			|scoped|
+			{
+				for _ in 0..3000
+				{
+					let counter = counter.clone();
+					scoped.execute(
+						move ||
+						{
+							*counter.lock().unwrap() += 1;
+							sleep_ms(1000);
+						}
+					);
+				}
+			}
+		);
+
+		assert_eq!(*counter.lock().unwrap(), 3000);
+	}
+
+	#[test]
 	fn state_maker_panic()
 	{
-		let mut pool = Pool::new(2);
+		let mut pool = Pool::new_threads_unbounded(2);
 		let panic = ::std::panic::catch_unwind(
 			::std::panic::AssertUnwindSafe(
 				||

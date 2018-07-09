@@ -3,7 +3,7 @@
 [![Documentation](https://docs.rs/pond/badge.svg)](https://docs.rs/pond/)
 
 	[dependencies]
-	pond = "0.2.2"
+	pond = "0.3"
 
 # Introduction
 Yet another implementation of a scoped threadpool.
@@ -38,7 +38,7 @@ libraries.
 
 # Example
     extern crate pond;
-    let mut pool = pond::Pool::new(4);
+    let mut pool = pond::Pool::new();
 
     let mut vec = vec![0, 0, 0, 0, 0, 0, 0, 0];
 
@@ -65,6 +65,13 @@ libraries.
             }
         }
     );
+
+# Changelog
+
+* 0.3.0 (2018-07-09): The constructor for `Pool` now in general defaults
+to the native number of threads, and the backlog is no longer unbounded.
+I have found that this makes things less error prone and less unnecessarily
+verbose.
 
 # See Also
 
