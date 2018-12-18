@@ -409,7 +409,10 @@ impl Drop for Pool
 			let mut messaging = self.pool_status.messaging
 				.lock().unwrap_or_else(|e| e.into_inner());
 
-			assert_eq!(messaging.job_queue.len(), 0);
+			if messaging.job_queue.len() != 0
+			{
+				panic!("pond::Pool: one or more worker thread panicked");
+			}
 			messaging.flag = Some(Flag::Exit);
 			self.pool_status.incoming_notif_cv.notify_all();
 		}
