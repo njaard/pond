@@ -425,7 +425,7 @@ impl Drop for Pool
 pub struct Scope<'pool, 'scope>
 {
 	pool: &'pool Pool,
-	_scope: PhantomData<::std::cell::Cell<&'scope mut ()>>,
+	_scope: PhantomData<::std::cell::Cell<&'scope ()>>,
 }
 
 impl<'pool, 'scope> Scope<'pool, 'scope>
@@ -440,7 +440,7 @@ impl<'pool, 'scope> Scope<'pool, 'scope>
 	pub fn with_state<StateMaker, State>(self, state_maker : StateMaker)
 		-> ScopeWithState<'pool, 'scope, State>
 		where StateMaker: Fn() -> State + Send + 'scope,
-		State: 'static
+			State: 'static
 	{
 		// `Pool` expects a closure that returns a Box of uncertain type
 		let f =
@@ -569,10 +569,10 @@ impl<'pool, 'scope> Scope<'pool, 'scope>
 /// Like `Scope`, but the `execute` function
 /// accepts worker closures with a State parameter.
 pub struct ScopeWithState<'pool, 'scope, State>
-	where State : 'scope
+	where State : 'static
 {
 	pool: &'pool Pool,
-	_scope: PhantomData<&'scope ()>,
+	_scope: PhantomData<::std::cell::Cell<&'scope ()>>,
 	_state: PhantomData<&'scope State>,
 }
 
@@ -594,7 +594,7 @@ impl<'pool, 'scope, State> ScopeWithState<'pool, 'scope, State>
 	/// again after a panic occurs, then [`Pool::scoped`](struct.Pool.html#method.scoped)
 	/// will panic before it completes.
 	pub fn execute<F>(&self, f: F)
-		where F: FnOnce(&mut State) + Send + 'pool
+		where F: FnOnce(&mut State) + Send + 'scope
 	{
 		// this is where the magic happens,
 		// we change the lifetime of `f` and then enforce
@@ -605,7 +605,7 @@ impl<'pool, 'scope, State> ScopeWithState<'pool, 'scope, State>
 			= unsafe
 			{
 				std::mem::transmute::<
-					Box<AbstractTask + 'pool>,
+					Box<AbstractTask + 'scope>,
 					Box<AbstractTask + 'static>
 				>(Box::new(FnState(f, PhantomData)))
 			};
