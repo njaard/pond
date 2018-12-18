@@ -1,6 +1,6 @@
 [package]
 name = "pond"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Kalle Samuels <ks@ks.ax>"]
 license = "BSD-2-Clause"
 readme = "Readme.md"
