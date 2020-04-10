@@ -75,7 +75,7 @@ verbose.
 
 # See Also
 
-* [scoped-threadpool](https://crates.io/crates/scoped-threadpool) (Has a very similar API, but no state). Please beware [a serious bug](https://github.com/Kimundi/scoped-threadpool-rs/issues/16).
+* [scoped-threadpool](https://crates.io/crates/scoped-threadpool) (Original inspiration for this crate. Has a very similar API, but no state).
 * [scoped_pool](https://crates.io/crates/scoped_pool) (Very flexible, but no state)
 * [crossbeam](https://crates.io/crates/crossbeam) (doesn't implement a thread pool)
 
